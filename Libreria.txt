@@ -1,0 +1,104 @@
+
+- Biblioteca
+    + id_biblioteca
+    + precio_por_dia_extra
+
+- Personal
+    + id_empleado
+    - agregar_libro_a_inventario
+        Accion: obtener_codigo_de_barra
+                incrementar Libros.cantidad
+    - agregar_nuevo_usuario
+        Accion: crear nuevo Usuario.id_usuario
+    - prestar_libro
+        Accion: obtener Usuario.id_usuario
+                checar Usuario.libros_rentados < 3
+                    obtener Libro.codigo_de_barra
+                    cambiar Codigo_de_barra.status
+                    incrementar Usuario.libros_rentados
+    - devolucion_libro
+        Accion: obtener Usuario.id_usuario
+                obtener Libro.codigo_de_barra
+                cambiar Codigo_de_barra.fecha_regresado
+                checar Codigo_de_barra.fecha_regresado <= fecha_de_entrega
+                    cambiar Codigo_de_barra.status
+                    reducir Usuario.libros_rentados
+    - sellar_libro
+        Accion: obtener Usuario.id_usuario
+                obtener Libro.codigo_de_barra
+                checar Codigo_de_barra.fecha_regresado <= fecha_de_entrega
+                    cambiar Codigo_de_barra.sello
+                    cambiar Codigo_de_barra.fecha_rentado
+    - cobrar_dias_extra
+        Accion: obtener Usuario.id_usuario
+                cambiar Cobro_por_dia.dias_extra * precio_por_dia_extra
+
+- Libro
+    + codigo_de_barra
+    + cantidad (numero de libros iguales)
+
+- Usuario
+    + id_usuario
+    + libros_rentados 
+    + edo_de_cuenta
+
+- Codigo_de_barra
+    + id_libro
+    + fecha_rentado
+    + fecha_de_entrega
+    + fecha_regresado
+    + status (disponible/no_disponible)
+    + sello (aprovado/no_aprovado)
+
+- Cobro_por_dia
+    + dias_extra
+        Accion: checar Codigo_de_barra.fecha_regresado > fecha_de_entrega
+                incrementar dias_extra + 1
+
+- Pago_id
+
+- Almacenamiento
+
+
+
+Tarea: Leer libro recomendado: Object-Oriented Data Structures Using Java, 3rd Edition
+                                Capitulo 1
+        Hacer UML chart en lucidchart.com
+
+
+Notas:
+        Accion se convierte en metodo
+
+
+
+Acciones:
+Busqueda por titulo, autor -> inventario (lo tenemos/no, disponible/no y cuando estara)
+Rentar -> indentificar usuario, status 
+Entregar -> libro entre usuario y personal, agregar a inventario
+Entrega vencida -> cobrar por dias extra 
+*Perdida de libro, nuevo igreso a inventario
+Usuario: Nuevo usuario, buscar usuario, borrar usuario.
+
+TAREA: Buscar UML diagramas en O'REILLY, y sus relaciones
+        Implementacion de la renta
+
+
+
+
+TAREA: Agregar busqueda por titulo y autor (opcion 3) -> Que no sea atado a case-sensitivity 
+        Opcion 4: Feedback rapido -> si ya no puedo rentar mas, ya no preguntar que libro 
+        (quiza nuevo metodo para validar el rent-status del usuario -> regresa boolean, falso = no mas rentas,
+        verdadero = proceder preguntar por libro; igualmente con el libro, si ya no hay, entonces pedir otro libro)
+        Agregar opcion 6, devolver libro (verificar si hay que pagar y hacer el cobro)
+        * Busqueda no exacta de libro (fuzzy search)
+        * Unit tests
+
+
+Notas: Al buscar y rentar -> detectar todos los libros del mismo autor, igualmente el titulo.
+        Si son multiples elementos, regresar un array de objetos (agregar unittest)
+        Si el resultado es 0, regresar null o array vacio (determinar basado en lectura y mejores practicas)
+        - Agregar pago 
+        - Decir si el libro esta rentado y cuando pudiera estar disponible 
+        - Ver como implementar fuzzy search
+        - Completar opcion 1 y 2
+        * Subir a github 
