@@ -39,33 +39,40 @@ class Library:
         return f"User not found.\n"
 
     def return_book(self, user, barcode, return_date):
-        if barcode in self.rental_records:
-            record = self.rental_records[barcode]
-            rented_days = (return_date - record.rented_date).days  
+        rental_record = self.search_rental_record(barcode, user.user_id)
+        if rental_record:
+            rented_days = (return_date - rental_record.rented_date).days
             book = self.search_by_barcode(barcode)
-            
-            if rented_days > 7 and not record.seal:
-                # Calculate extra days and charge the user
-                extra_days = rented_days - 7
-                extra_charges = extra_days * self.extra_days_price
-                user.billing += extra_charges
-                print(f"Book '{book.title}' was overdue by {extra_days} days. Extra charges applied: ${extra_charges:.2f}")
+            if rental_record.seal:
+                print(f"Book '{book.title}' is sealed and exempt from overdue charges.")
             else:
-                print(f"Book '{book.title}' returned on time or was sealed.")
-            
-            # Update book and user records
+                if rented_days > 7:
+                    extra_days = rented_days - 7
+                    extra_charges = extra_days * self.extra_days_price
+                    user.billing += extra_charges
+                    print(f"Book '{book.title}' was overdue by {extra_days} days. Extra charges applied: ${extra_charges:.2f}")
+                else:
+                    print(f"Book '{book.title}' returned on time.")
             user.rented_books -= 1
             book.book_quantity += 1
-            # Remove rental record as the book is returned
-            del self.rental_records[barcode]  
+            # Remove rental record 
+            del self.rental_records[(barcode, user.user_id)]
         else:
             print(f"No rental record found for book with barcode: {barcode}.\n")
 
+    def search_rental_record(self, barcode, user_id):
+        # Helps to search for a rental record based on barcode and user_id
+        return self.rental_records.get((barcode, user_id))
+
     def seal_book(self, barcode):
-        if barcode in self.rental_records:
-            record = self.rental_records[barcode]
-            # Mark the book as sealed
-            record.seal = True  
+        # Search for a rental record using the barcode (not user_id)
+        rental_record = None
+        for (book_barcode, user_id), record in self.rental_records.items():
+            if book_barcode == barcode:
+                rental_record = record
+                break 
+        if rental_record:
+            rental_record.seal = True 
             print(f"Book with barcode {barcode} has been sealed successfully.")
         else:
             print(f"No rental record found for book with barcode: {barcode}.\n")
@@ -79,24 +86,37 @@ class Personnel:
         return f"Employee ID: {self.employee_id}\n"
 
     def rent_book(self, user, book, rented_date):
+        # Check if the user has reached the rental limit
         if user.rented_books >= 3:
-            return "Can't rent book. The user has rented 3 books."
-        # Checking if the book is currently rented
-        if book.book_barcode in user.library.rental_records:
-            rental_record = user.library.rental_records[book.book_barcode]
-            if rental_record.status == "rented":
-                return f"Book '{book.title}' is currently rented. \nExpected return date: {rental_record.due_date.strftime('%m-%d-%Y')}\n"
-        # If book is available    
-        if user.rented_books < 3 and book.book_quantity > 0:
+            return "Can't rent book. The user has already rented 3 books."
+        # If the book has available copies, proceed with rental
+        if book.book_quantity > 0:
             book.book_quantity -= 1
             user.rented_books += 1
-            user.library.rental_records[book.book_barcode] = BarCode(
-                book.book_barcode, rented_date, rented_date + timedelta(days=7), None, 'rented', False
+            # Create a new rental record
+            rental_record = BarCode(
+                book_id=book.book_barcode,
+                rented_date=rented_date,
+                due_date=rented_date + timedelta(days=7),
+                return_date=None,
+                status="rented",
+                seal=False
             )
-            return f"Book '{book.title}' rented to {user.user_id}. \nCopies left: {book.book_quantity}"
-        elif book.book_quantity == 0:
-            return f"The book: '{book.title}' has no copies left."
-        return "Can't rent book. The user has rented 3 books."
+            user.library.rental_records[(book.book_barcode, user.user_id)] = rental_record
+            return f"Book '{book.title}' rented to {user.user_id}. Copies left: {book.book_quantity}"
+        # If no copies are available, find the soonest return date
+        else:
+            # Collect all due dates for specific book
+            due_dates = [
+                record.due_date for record in user.library.rental_records.values()
+                if record.book_id == book.book_barcode and record.return_date is None
+            ]
+            # Find the earliest due date 
+            if due_dates:
+                soonest_due_date = min(due_dates)
+                return f"Book '{book.title}' is currently rented out. Expected return date: {soonest_due_date.strftime('%m-%d-%Y')}"
+            else:
+                return f"Book '{book.title}' is currently rented out and no return date is available."
 
     def return_book(self, user, book_barcode, return_date):
         user.library.return_book(user, book_barcode, return_date)
@@ -125,6 +145,8 @@ class User:
         return f"User ID: {self.user_id} has {self.rented_books} rented books and an outstanding charge of ${self.billing:.2f}"
 
     def make_payment(self, amount):
+        if self.billing == 0:
+            return "You have no outstanding balance. No payment is necessary.\n"
         if amount <= 0:
             return "Invalid payment amount.\n"
         if amount > self.billing:
