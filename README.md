@@ -1,4 +1,3 @@
-```markdown
 # Library Management System
 
 A Python-based library management system designed to streamline book rentals, returns, overdue charge calculations, and user account management. This project demonstrates Object-Oriented Programming (OOP) principles, data handling, and practical problem-solving skills.
